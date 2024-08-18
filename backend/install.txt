@@ -1,0 +1,89 @@
+- go mod init github.com/khairililmi2468gmailcom/toko_online_golang
+- go get github.com/gorilla/mux
+- go get gorm.io/gorm -> ORM library
+- go get gorm.io/driver/postgres ->untuk postgres sql 
+- go get github.com/joho/godotenv modul ->untuk membaca file .env yang bisa digunakan untuk konfig database
+- go get github.com/unrolled/render -> untuk merender view html, walaupun render ini support untuk banyak reaktif respond seperti json, xml dll.
+
+
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.6.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+atau
+export PATH=$PATH:/usr/local/bin/go/bin
+go version
+
+cara import file csv to mysql:
+- cp file.csv /var/lib/mysql-files/
+- masuk ke mysql dan use database kemudian:
+    LOAD DATA INFILE '/var/lib/mysql-files/dataset.csv'
+    INTO TABLE forcast_data
+    FIELDS TERMINATED BY ',' 
+    ENCLOSED BY '"' 
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS
+    (timestamp, temperature, pressure, shutdown);
+
+
+mengisi data ke mysql dengan rentang waktu, random temperature, random pressure, dan random status
+DELIMITER //
+
+CREATE PROCEDURE InsertForecastData()
+BEGIN
+    DECLARE v_timestamp DATETIME DEFAULT '2024-08-17 23:00:00';
+    DECLARE v_end_timestamp DATETIME DEFAULT '2024-10-17 23:00:00';
+    DECLARE v_temperature DOUBLE;
+    DECLARE v_pressure DOUBLE;
+    DECLARE v_shutdown TINYINT;
+
+    WHILE v_timestamp <= v_end_timestamp DO
+        SET v_temperature = ROUND(90 + RAND() * 10, 2);  -- Random temperature between 90 and 100
+        SET v_pressure = ROUND(1.5 + RAND() * 0.5, 2);   -- Random pressure between 1.5 and 2.0
+        SET v_shutdown = IF(v_temperature > 95 AND v_pressure > 1.7, 1, 0);  -- Determine shutdown status
+
+        INSERT INTO forcast_data (timestamp, temperature, pressure, shutdown)
+        VALUES (v_timestamp, v_temperature, v_pressure, v_shutdown);
+
+        SET v_timestamp = v_timestamp + INTERVAL 1 HOUR;
+    END WHILE;
+END //
+
+DELIMITER ;
+
+-- Call the stored procedure to insert the data
+CALL InsertForecastData();
+
+-- Drop the procedure after use (optional)
+DROP PROCEDURE IF EXISTS InsertForecastData;
+
+
+
+Get data file .parquet from server:
+scp -P 33556 root@10.130.5.5:/home/golang/UREA_A/20240612-UREA_A.parquet /home/kita/Documents/
+
+
+# Initialize the Go module if not already done
+go mod init forecasting_app
+
+# Install necessary libraries
+
+# Gin web framework for routing
+go get -u github.com/gin-gonic/gin
+
+# GoLearn for machine learning (Random Forest)
+go get -u github.com/sjwhitworth/golearn
+
+# Parquet-Go for reading and writing Parquet files
+go get -u github.com/xitongsys/parquet-go
+
+# Goparquet for low-level Parquet processing
+go get -u github.com/fraugster/parquet-go
+
+# To manage dependencies
+go mod tidy
+
+
+UNTUK APLIKASI SEJAHTERA CHECK MASYARAKAT BENER MERIAH:
+go get -u github.com/gin-gonic/gin
+go get -u github.com/go-sql-driver/mysql
+go get -u gorm.io/gorm
+go get -u gorm.io/driver/mysql
