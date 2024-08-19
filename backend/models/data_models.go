@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"sync"
 	"time"
 )
 
 const (
 	PageSize    = 1440    // 1,440 minutes in a day
-	BatchSize   = 10000    // Batch size for data retrieval
+	BatchSize   = 10000   // Batch size for data retrieval
 	WorkerCount = 30      // Number of concurrent workers
 )
 
@@ -101,6 +102,7 @@ func GetTableData(db *sql.DB, tableName, column string, startTime, endTime time.
 	columnData := &TableColumnData{
 		TableName: tableName,
 		Columns:   []string{"Minute", "AverageValue"},
+		Data:      [][]interface{}{},
 	}
 
 	for rows.Next() {
@@ -110,7 +112,10 @@ func GetTableData(db *sql.DB, tableName, column string, startTime, endTime time.
 			return nil, err
 		}
 
-		columnData.Data = append(columnData.Data, []interface{}{minute, avgValue})
+		// Pembulatan nilai ke dua desimal
+		roundedValue := RoundToTwoDecimalPlaces(avgValue)
+
+		columnData.Data = append(columnData.Data, []interface{}{minute, roundedValue})
 	}
 
 	if err = rows.Err(); err != nil {
@@ -118,6 +123,13 @@ func GetTableData(db *sql.DB, tableName, column string, startTime, endTime time.
 	}
 
 	return columnData, nil
+}
+
+
+func RoundToTwoDecimalPlaces(value float64) float64 {
+	// Membulatkan ke dua desimal menggunakan math.Round
+	roundedValue := math.Round(value*100) / 100
+	return roundedValue
 }
 
 func CombineTableData(results chan *TableColumnData) map[string]interface{} {
