@@ -18,7 +18,7 @@ const (
 
 func GetData(c *gin.Context, db *sql.DB) {
 	date := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
-	column := c.DefaultQuery("column", "Time_Stamp")
+	column := c.DefaultQuery("column", "Value")
 
 	startTime, err := time.Parse("2006-01-02", date)
 	if err != nil {
@@ -36,14 +36,12 @@ func GetData(c *gin.Context, db *sql.DB) {
 	results := make(chan *models.TableColumnData, len(tables))
 	var wg sync.WaitGroup
 
-	// Worker pool for concurrent data fetching
 	jobChan := make(chan string, len(tables))
 	for i := 0; i < WorkerCount; i++ {
 		wg.Add(1)
 		go worker(db, jobChan, results, &wg, column, startTime, endTime)
 	}
 
-	// Add jobs to the job channel
 	for _, table := range tables {
 		jobChan <- table
 	}
@@ -57,7 +55,6 @@ func GetData(c *gin.Context, db *sql.DB) {
 	c.JSON(http.StatusOK, combinedData)
 }
 
-// Worker function to fetch data concurrently
 func worker(db *sql.DB, jobChan chan string, results chan *models.TableColumnData, wg *sync.WaitGroup, column string, startTime, endTime time.Time) {
 	defer wg.Done()
 
@@ -70,7 +67,6 @@ func worker(db *sql.DB, jobChan chan string, results chan *models.TableColumnDat
 		results <- batchResults
 	}
 }
-
 
 func GetAllColumnNames(c *gin.Context, db *sql.DB) {
 	columnNames, err := models.GetAllColumnNames(db)

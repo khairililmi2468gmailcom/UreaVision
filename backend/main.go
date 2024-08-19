@@ -11,11 +11,19 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// const (
+// 	DBUser     = "makanan"
+// 	DBPassword = "passwordMakanan"
+// 	DBName     = "chart_trend_pagar"
+// 	DBHost     = "localhost"
+// 	DBPort     = "3306"
+// )
+
 const (
-	DBUser     = "makanan"
-	DBPassword = "passwordMakanan"
-	DBName     = "chart_trend_pagar"
-	DBHost     = "localhost"
+	DBUser     = "loca_warehouse"
+	DBPassword = "E!AMMkEDJ%^rBLnx"
+	DBName     = "loca_warehouse"
+	DBHost     = "10.130.5.9"
 	DBPort     = "3306"
 )
 

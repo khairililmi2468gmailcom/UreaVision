@@ -1,0 +1,354 @@
+// // package models
+
+// import (
+// 	"database/sql"
+// 	"encoding/base64"
+// 	"fmt"
+// 	"log"
+// 	"sync"
+// 	"time"
+// )
+
+// const (
+// 	PageSize  = 90400 // 86,400 rows per day
+// 	BatchSize = 1000000  // Split data retrieval into batches
+// 	WorkerCount = 100    
+
+// )
+
+// type TableColumnData struct {
+// 	TableName string
+// 	Columns   []string
+// 	Data      [][]interface{}
+// }
+
+// func GetTables(db *sql.DB) ([]string, error) {
+// 	rows, err := db.Query("SHOW TABLES")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
+
+// 	var tables []string
+// 	for rows.Next() {
+// 		var table string
+// 		if err := rows.Scan(&table); err != nil {
+// 			return nil, err
+// 		}
+// 		tables = append(tables, table)
+// 	}
+// 	return tables, nil
+// }
+
+// func GetTableDataInBatches(db *sql.DB, tableName, column string, startTime, endTime time.Time) (*TableColumnData, error) {
+//     columnData := &TableColumnData{
+//         TableName: tableName,
+//         Columns:   []string{"Time_Stamp", column},
+//         Data:      [][]interface{}{},
+//     }
+
+//     // Channel for jobs and results
+//     jobChan := make(chan int, PageSize/BatchSize)
+//     resultChan := make(chan [][]interface{}, PageSize/BatchSize)
+//     var wg sync.WaitGroup
+
+//     // Start workers
+//     for i := 0; i < WorkerCount; i++ {
+//         wg.Add(1)
+//         go func() {
+//             defer wg.Done()
+//             for offset := range jobChan {
+//                 batchData, err := GetTableData(db, tableName, column, startTime, endTime, offset, BatchSize)
+//                 if err != nil {
+//                     log.Println("Error fetching batch data:", err)
+//                     continue
+//                 }
+//                 resultChan <- batchData.Data
+//             }
+//         }()
+//     }
+
+//     // Send jobs
+//     for offset := 0; offset < PageSize; offset += BatchSize {
+//         jobChan <- offset
+//     }
+//     close(jobChan)
+
+//     // Wait for all workers to finish
+//     go func() {
+//         wg.Wait()
+//         close(resultChan)
+//     }()
+
+//     // Collect results
+//     for batch := range resultChan {
+//         columnData.Data = append(columnData.Data, batch...)
+//     }
+
+//     return columnData, nil
+// }
+
+
+// func GetTableData(db *sql.DB, tableName, column string, startTime, endTime time.Time, offset, limit int) (*TableColumnData, error) {
+// 	query := fmt.Sprintf("SELECT Time_Stamp, %s FROM %s WHERE Time_Stamp BETWEEN ? AND ? LIMIT ? OFFSET ?", column, tableName)
+
+// 	rows, err := db.Query(query, startTime, endTime, limit, offset)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
+
+// 	columnData := &TableColumnData{
+// 		TableName: tableName,
+// 		Columns:   []string{"Time_Stamp", column},
+// 	}
+
+// 	for rows.Next() {
+// 		var timestampBytes []byte
+// 		var value interface{}
+// 		if err := rows.Scan(&timestampBytes, &value); err != nil {
+// 			return nil, err
+// 		}
+
+// 		// Convert timestampBytes to time.Time
+// 		var formattedTime string
+// 		if len(timestampBytes) > 0 {
+// 			timestampString := string(timestampBytes)
+// 			parsedTime, err := time.Parse("2006-01-02 15:04:05", timestampString)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 			formattedTime = parsedTime.Format("2006-01-02 15:04:05")
+// 		} else {
+// 			formattedTime = "NULL"
+// 		}
+
+// 		// Handle column value formatting
+// 		if column == "Time_Stamp" {
+// 			value = formattedTime
+// 		} else {
+// 			if valueBytes, ok := value.([]byte); ok {
+// 				decoded, _ := base64.StdEncoding.DecodeString(string(valueBytes))
+// 				value = string(decoded)
+// 			}
+// 		}
+
+// 		columnData.Data = append(columnData.Data, []interface{}{formattedTime, value})
+// 	}
+
+// 	if err = rows.Err(); err != nil {
+// 		return nil, err
+// 	}
+
+// 	return columnData, nil
+// }
+
+// func CombineTableData(results chan *TableColumnData) map[string]interface{} {
+// 	combinedData := make(map[string]interface{})
+// 	combinedData["columns"] = []string{}
+// 	combinedData["data"] = [][]interface{}{}
+
+// 	columnSet := make(map[string]bool)
+// 	var data [][]interface{}
+
+// 	for tableData := range results {
+// 		for _, col := range tableData.Columns {
+// 			colName := tableData.TableName + "." + col
+// 			if !columnSet[colName] {
+// 				columnSet[colName] = true
+// 				combinedData["columns"] = append(combinedData["columns"].([]string), colName)
+// 			}
+// 		}
+
+// 		data = append(data, tableData.Data...)
+// 	}
+
+// 	combinedData["data"] = data
+// 	return combinedData
+// }
+
+
+// func GetAllColumnNames(db *sql.DB) ([]string, error) {
+// 	tables, err := GetTables(db)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	columnSet := make(map[string]bool)
+
+// 	for _, table := range tables {
+// 		query := fmt.Sprintf("SHOW COLUMNS FROM %s", table)
+
+// 		rows, err := db.Query(query)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		defer rows.Close()
+
+// 		for rows.Next() {
+// 			var columnName, colType, null, key, defaultValue, extra sql.NullString
+
+// 			// Use sql.NullString to handle potential NULL values
+// 			if err := rows.Scan(&columnName, &colType, &null, &key, &defaultValue, &extra); err != nil {
+// 				return nil, err
+// 			}
+
+// 			// Convert valid sql.NullString to string and add to the set
+// 			if columnName.Valid {
+// 				columnSet[columnName.String] = true
+// 			}
+// 		}
+// 	}
+
+// 	var uniqueColumnNames []string
+// 	for col := range columnSet {
+// 		uniqueColumnNames = append(uniqueColumnNames, col)
+// 	}
+
+// 	return uniqueColumnNames, nil
+// }
+
+// package controllers
+
+// import (
+// 	"database/sql"
+// 	"log"
+// 	"net/http"
+// 	"sync"
+// 	"time"
+
+// 	"chart_pagar/models"
+
+// 	"github.com/gin-gonic/gin"
+// )
+
+// const (
+// 	WorkerCount = 20 // Number of workers
+// )
+
+// func GetData(c *gin.Context, db *sql.DB) {
+// 	date := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
+// 	column := c.DefaultQuery("column", "Time_Stamp")
+
+// 	startTime, err := time.Parse("2006-01-02", date)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
+// 		return
+// 	}
+// 	endTime := startTime.Add(24 * time.Hour)
+
+// 	tables, err := models.GetTables(db)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	results := make(chan *models.TableColumnData, len(tables))
+// 	var wg sync.WaitGroup
+
+// 	// Worker pool for concurrent data fetching
+// 	jobChan := make(chan string, len(tables))
+// 	for i := 0; i < WorkerCount; i++ {
+// 		wg.Add(1)
+// 		go worker(db, jobChan, results, &wg, column, startTime, endTime)
+// 	}
+
+// 	// Add jobs to the job channel
+// 	for _, table := range tables {
+// 		jobChan <- table
+// 	}
+// 	close(jobChan)
+
+// 	wg.Wait()
+// 	close(results)
+
+// 	combinedData := models.CombineTableData(results)
+
+// 	c.JSON(http.StatusOK, combinedData)
+// }
+
+// // Worker function to fetch data concurrently
+// func worker(db *sql.DB, jobChan chan string, results chan *models.TableColumnData, wg *sync.WaitGroup, column string, startTime, endTime time.Time) {
+// 	defer wg.Done()
+
+// 	for tableName := range jobChan {
+// 		batchResults, err := models.GetTableDataInBatches(db, tableName, column, startTime, endTime)
+// 		if err != nil {
+// 			log.Println("Error fetching data from table", tableName, ":", err)
+// 			continue
+// 		}
+// 		results <- batchResults
+// 	}
+// }
+
+
+// func GetAllColumnNames(c *gin.Context, db *sql.DB) {
+// 	columnNames, err := models.GetAllColumnNames(db)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusOK, gin.H{"columns": columnNames})
+// }
+
+// package routes
+
+// import (
+// 	"database/sql"
+
+// 	"chart_pagar/controllers"
+
+// 	"github.com/gin-gonic/gin"
+// )
+
+// func InitializeRoutes(router *gin.Engine, db *sql.DB) {
+// 	// Data route
+// 	router.GET("/data", func(c *gin.Context) {
+// 		controllers.GetData(c, db)
+// 	})
+// 	router.GET("/all-columns", func(c *gin.Context) {
+// 		controllers.GetAllColumnNames(c, db)
+// 	})
+// }
+
+
+// package main
+
+// import (
+// 	"database/sql"
+// 	"fmt"
+// 	"log"
+
+// 	"chart_pagar/routes"
+
+// 	"github.com/gin-gonic/gin"
+// 	_ "github.com/go-sql-driver/mysql"
+// )
+
+// const (
+// 	DBUser     = "loca_warehouse"
+// 	DBPassword = "E!AMMkEDJ%^rBLnx"
+// 	DBName     = "loca_warehouse"
+// 	DBHost     = "10.130.5.9"
+// 	DBPort     = "3306"
+// )
+
+// func main() {
+// 	// Database connection setup
+// 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", DBUser, DBPassword, DBHost, DBPort, DBName))
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer db.Close()
+
+// 	// Initialize router
+// 	router := gin.Default()
+
+// 	// Initialize routes with the database connection
+// 	routes.InitializeRoutes(router, db)
+
+// 	// Start server
+// 	router.Run(":5003")
+// }
+

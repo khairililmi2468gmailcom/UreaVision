@@ -65,47 +65,47 @@
     </div>
 </div>
 <style>
-    /* Overlay style */
-    .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        /* Semi-transparent black */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        /* Ensure it's above all content */
+/* Overlay style */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    /* Semi-transparent black */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    /* Ensure it's above all content */
+}
+
+/* Spinner style */
+.loading-spinner {
+    font-size: 3rem;
+    /* Adjust size as needed */
+    color: #007bff;
+    /* Spinner color */
+    animation: spin 1s linear infinite;
+}
+
+/* Spinner animation */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
     }
 
-    /* Spinner style */
-    .loading-spinner {
-        font-size: 3rem;
-        /* Adjust size as needed */
-        color: #007bff;
-        /* Spinner color */
-        animation: spin 1s linear infinite;
+    100% {
+        transform: rotate(360deg);
     }
+}
 
-    /* Spinner animation */
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    /* Optional: Adjust icon size */
-    .loading-spinner i {
-        font-size: 4rem;
-        /* Adjust icon size if needed */
-    }
+/* Optional: Adjust icon size */
+.loading-spinner i {
+    font-size: 4rem;
+    /* Adjust icon size if needed */
+}
 </style>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -113,104 +113,104 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    $(document).ready(function () {
-        // Initialize Select2 with placeholder
-        $('#jenis').select2({
-            placeholder: "Pilih jenis...",
-            allowClear: true // Allows clearing the selection
-        });
-
-        // Fetch data from the API endpoint
-        fetch('<?= base_url('/columns/getColumns') ?>')
-            .then(response => response.json())
-            .then(data => {
-                // Filter out "Time_Stamp" column
-                const filteredData = data.filter(column => column !== "Time_Stamp");
-
-                // Populate the select element with the filtered data
-                filteredData.forEach(column => {
-                    const option = new Option(column, column, false, false);
-                    $('#jenis').append(option);
-                });
-
-                // Refresh the Select2 dropdown to display the new options
-                $('#jenis').trigger('change');
-            })
-            .catch(error => console.error('Error fetching data:', error));
+$(document).ready(function() {
+    // Initialize Select2 with placeholder
+    $('#jenis').select2({
+        placeholder: "Pilih jenis...",
+        allowClear: true // Allows clearing the selection
     });
 
-    let selectedOptions = [];
-    let combinedChart = null; // Variable to hold the combined chart instance
+    // Fetch data from the API endpoint
+    fetch('<?= base_url('/columns/getColumns') ?>')
+        .then(response => response.json())
+        .then(data => {
+            // Filter out "Time_Stamp" column
+            const filteredData = data.filter(column => column !== "Time_Stamp");
 
-    // Event listener for the "Add Item" button
-    $('#add-item').on('click', function () {
-        const date = $('#date').val();
-        const jenis = $('#jenis').val();
+            // Populate the select element with the filtered data
+            filteredData.forEach(column => {
+                const option = new Option(column, column, false, false);
+                $('#jenis').append(option);
+            });
 
-        if (!date || !jenis) {
-            alert('Opsi dan tanggal tidak boleh kosong.');
-            return;
-        }
+            // Refresh the Select2 dropdown to display the new options
+            $('#jenis').trigger('change');
+        })
+        .catch(error => console.error('Error fetching data:', error));
+});
 
-        // Check if the option is already selected
-        if (selectedOptions.find(option => option.jenis === jenis)) {
-            alert('This option is already added.');
-            return;
-        }
+let selectedOptions = [];
+let combinedChart = null; // Variable to hold the combined chart instance
 
-        // Limit to a maximum of 3 options
-        if (selectedOptions.length >= 3) {
-            alert('Anda hanya dapat menampilkan 3 item.');
-            return;
-        }
+// Event listener for the "Add Item" button
+$('#add-item').on('click', function() {
+    const date = $('#date').val();
+    const jenis = $('#jenis').val();
 
-        // Add the option to the selectedOptions array
-        selectedOptions.push({
-            jenis,
-            date
-        });
+    if (!date || !jenis) {
+        alert('Opsi dan tanggal tidak boleh kosong.');
+        return;
+    }
 
-        // Update the selected-options div with jenis, date, and a trash icon button
-        $('#selected-options').append(
-            `<div class="selected-option p-1 d-flex align-items-center">
+    // Check if the option is already selected
+    if (selectedOptions.find(option => option.jenis === jenis)) {
+        alert('This option is already added.');
+        return;
+    }
+
+    // Limit to a maximum of 3 options
+    if (selectedOptions.length >= 3) {
+        alert('Anda hanya dapat menampilkan 3 item.');
+        return;
+    }
+
+    // Add the option to the selectedOptions array
+    selectedOptions.push({
+        jenis,
+        date
+    });
+
+    // Update the selected-options div with jenis, date, and a trash icon button
+    $('#selected-options').append(
+        `<div class="selected-option p-1 d-flex align-items-center">
             <span class="me-2">${jenis} |</span>
             <span class="me-2">${date}</span>
             <button class="btn btn-danger btn-sm remove-item ms-auto" data-jenis="${jenis}" data-date="${date}">
                 <i class="bi bi-trash"></i>
             </button>
         </div>`
-        );
+    );
 
-        // Clear the select and date inputs
-        $('#jenis').val(null).trigger('change');
-        $('#date').val('');
-    });
+    // Clear the select and date inputs
+    $('#jenis').val(null).trigger('change');
+    $('#date').val('');
+});
 
-    // Event listener for removing items
-    $(document).on('click', '.remove-item', function () {
-        const jenis = $(this).data('jenis');
-        const date = $(this).data('date');
+// Event listener for removing items
+$(document).on('click', '.remove-item', function() {
+    const jenis = $(this).data('jenis');
+    const date = $(this).data('date');
 
-        // Remove the option from the selectedOptions array
-        selectedOptions = selectedOptions.filter(option => option.jenis !== jenis || option.date !== date);
+    // Remove the option from the selectedOptions array
+    selectedOptions = selectedOptions.filter(option => option.jenis !== jenis || option.date !== date);
 
-        // Remove the corresponding div from the UI
-        $(this).closest('.selected-option').remove();
-    });
+    // Remove the corresponding div from the UI
+    $(this).closest('.selected-option').remove();
+});
 
-    document.getElementById('play-button').addEventListener('click', function () {
-        if (selectedOptions.length === 0) {
-            alert("Belum memilih opsi!");
-            return;
-        }
+document.getElementById('play-button').addEventListener('click', function() {
+    if (selectedOptions.length === 0) {
+        alert("Belum memilih opsi!");
+        return;
+    }
 
-        // Show the loading overlay
-        document.getElementById('loading-overlay').style.display = 'flex';
+    // Show the loading overlay
+    document.getElementById('loading-overlay').style.display = 'flex';
 
-        const chartData = []; // Clear previous chart data
+    const chartData = []; // Clear previous chart data
 
-        // Fetch data for each selected option
-        Promise.all(selectedOptions.map(option => {
+    // Fetch data for each selected option
+    Promise.all(selectedOptions.map(option => {
             const apiUrl =
                 `http://localhost:8080/proxy/fetch-data?date=${encodeURIComponent(option.date)}&column=${encodeURIComponent(option.jenis)}`;
 
@@ -237,57 +237,127 @@
                     return null; // Handle errors gracefully
                 });
         }))
-            .then(results => {
-                // Hide the loading overlay
-                document.getElementById('loading-overlay').style.display = 'none';
+        .then(results => {
+            // Hide the loading overlay
+            document.getElementById('loading-overlay').style.display = 'none';
 
-                // Filter out any null results (in case of fetch errors)
-                results = results.filter(result => result !== null);
+            // Filter out any null results (in case of fetch errors)
+            results = results.filter(result => result !== null);
 
-                if (results.length === 0) {
-                    alert("Data yang di get tidak tersedia.");
-                    return;
-                }
+            if (results.length === 0) {
+                alert("Data yang di get tidak tersedia.");
+                return;
+            }
 
-                // console.log('Combined Chart Data:', results); 
+            // console.log('Combined Chart Data:', results); 
 
-                // Update the combined chart and individual charts
-                updateCombinedChart(results);
-                displayIndividualCharts(results);
-            })
-            .catch(() => {
-                // Hide the loading overlay if an error occurs
-                document.getElementById('loading-overlay').style.display = 'none';
-            });
+            // Update the combined chart and individual charts
+            updateCombinedChart(results);
+            displayIndividualCharts(results);
+        })
+        .catch(() => {
+            // Hide the loading overlay if an error occurs
+            document.getElementById('loading-overlay').style.display = 'none';
+        });
+});
+
+function updateCombinedChart(data) {
+    // Destroy the existing chart if it exists
+    if (combinedChart) {
+        combinedChart.destroy();
+    }
+
+    const ctxCombined = document.getElementById('combinedChart').getContext('2d');
+
+    // console.log('Combined Chart Data before rendering:', data); 
+
+    // Assuming all datasets have the same timestamps
+    const labels = data[0].timestamps.map((fullTimestamp) => {
+        const timePart = fullTimestamp.split(" ")[1]; // Extract HH:MM:SS
+        return timePart;
     });
 
-    function updateCombinedChart(data) {
-        // Destroy the existing chart if it exists
-        if (combinedChart) {
-            combinedChart.destroy();
+    combinedChart = new Chart(ctxCombined, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: data.map(dataset => ({
+                label: dataset.label,
+                data: dataset.data, // Data values
+                borderColor: dataset.borderColor,
+                backgroundColor: dataset.backgroundColor,
+                fill: false,
+                borderWidth: -1,
+            })),
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Time (HH:MM:SS)'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Value'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            const index = tooltipItems[0].dataIndex;
+                            return data[0].timestamps[index]; // Full timestamp display in tooltip
+                        },
+                        label: function(tooltipItem) {
+                            const value = tooltipItem.raw;
+                            return `Value: ${value}`;
+                        }
+                    }
+                }
+            }
         }
+    });
+}
 
-        const ctxCombined = document.getElementById('combinedChart').getContext('2d');
+// Function to display individual charts
+function displayIndividualCharts(data) {
+    const individualChartsContainer = document.querySelector('.individual-charts');
+    individualChartsContainer.innerHTML = ''; // Clear previous charts
 
-        // console.log('Combined Chart Data before rendering:', data); 
+    data.forEach(dataset => {
+        // console.log(`Individual Chart Data for ${dataset.label}:`, dataset
+        // .data); // Log data for each individual chart
 
-        // Assuming all datasets have the same timestamps
-        const labels = data[0].timestamps.map((fullTimestamp) => {
-            const timePart = fullTimestamp.split(" ")[1]; // Extract HH:MM:SS
+        const colDiv = document.createElement('div');
+        colDiv.className = 'col-md-4';
+        const canvas = document.createElement('canvas');
+        colDiv.appendChild(canvas);
+        individualChartsContainer.appendChild(colDiv);
+
+        const labels = dataset.timestamps.map((fullTimestamp) => {
+            const timePart = fullTimestamp.split(" ")[1]; // konversi "HH:MM:SS"
             return timePart;
         });
 
-        combinedChart = new Chart(ctxCombined, {
+        new Chart(canvas.getContext('2d'), {
             type: 'line',
             data: {
-                labels: labels,
-                datasets: data.map(dataset => ({
+                labels: labels, // untuk label sumbu x "hh:mm:ss"
+                datasets: [{
                     label: dataset.label,
-                    data: dataset.data, // Data values
+                    data: dataset.data,
                     borderColor: dataset.borderColor,
                     backgroundColor: dataset.backgroundColor,
                     fill: false,
-                })),
+                    borderWidth: -1,
+                }]
             },
             options: {
                 responsive: true,
@@ -296,7 +366,7 @@
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: 'Time (HH:MM:SS)'
+                            text: 'Time_Stamp (hh:mm:ss)'
                         }
                     },
                     y: {
@@ -310,99 +380,31 @@
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            title: function (tooltipItems) {
+                            title: function(tooltipItems) {
                                 const index = tooltipItems[0].dataIndex;
-                                return data[0].timestamps[index]; // Full timestamp display in tooltip
-                            },
-                            label: function (tooltipItem) {
-                                const value = tooltipItem.raw;
-                                return `Value: ${value}`;
+                                return dataset.timestamps[index]; //  full timestamp di tooltip
                             }
                         }
                     }
                 }
             }
         });
+    });
+}
+
+
+
+document.getElementById('refresh-button').addEventListener('click', function() {
+    // Check if there are selected options before refreshing
+    if (selectedOptions.length === 0) {
+        alert("No options selected to refresh!");
+        return;
     }
+    document.getElementById('loading-overlay').style.display = 'flex';
 
-    // Function to display individual charts
-    function displayIndividualCharts(data) {
-        const individualChartsContainer = document.querySelector('.individual-charts');
-        individualChartsContainer.innerHTML = ''; // Clear previous charts
+    const chartData = [];
 
-        data.forEach(dataset => {
-            // console.log(`Individual Chart Data for ${dataset.label}:`, dataset
-            // .data); // Log data for each individual chart
-
-            const colDiv = document.createElement('div');
-            colDiv.className = 'col-md-4';
-            const canvas = document.createElement('canvas');
-            colDiv.appendChild(canvas);
-            individualChartsContainer.appendChild(colDiv);
-
-            const labels = dataset.timestamps.map((fullTimestamp) => {
-                const timePart = fullTimestamp.split(" ")[1]; // konversi "HH:MM:SS"
-                return timePart;
-            });
-
-            new Chart(canvas.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: labels, // untuk label sumbu x "hh:mm:ss"
-                    datasets: [{
-                        label: dataset.label,
-                        data: dataset.data,
-                        borderColor: dataset.borderColor,
-                        backgroundColor: dataset.backgroundColor,
-                        fill: false,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Time_Stamp (hh:mm:ss)'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Value'
-                            }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                title: function (tooltipItems) {
-                                    const index = tooltipItems[0].dataIndex;
-                                    return dataset.timestamps[index]; //  full timestamp di tooltip
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        });
-    }
-
-
-
-    document.getElementById('refresh-button').addEventListener('click', function () {
-        // Check if there are selected options before refreshing
-        if (selectedOptions.length === 0) {
-            alert("No options selected to refresh!");
-            return;
-        }
-        document.getElementById('loading-overlay').style.display = 'flex';
-
-        const chartData = [];
-
-        Promise.all(selectedOptions.map(option => {
+    Promise.all(selectedOptions.map(option => {
             const apiUrl =
                 `http://localhost:8080/proxy/fetch-data?date=${encodeURIComponent(option.date)}&column=${encodeURIComponent(option.jenis)}`;
 
@@ -427,50 +429,50 @@
                     return null; // Handle errors gracefully
                 });
         }))
-            .then(results => {
-                document.getElementById('loading-overlay').style.display = 'none';
+        .then(results => {
+            document.getElementById('loading-overlay').style.display = 'none';
 
-                results = results.filter(result => result !== null);
+            results = results.filter(result => result !== null);
 
-                if (results.length === 0) {
-                    alert("Failed to fetch data for all options.");
-                    return;
-                }
-
-                updateCombinedChart(results);
-                displayIndividualCharts(results);
-            })
-            .catch(() => {
-                document.getElementById('loading-overlay').style.display = 'none';
-            });
-    });
-
-
-    document.getElementById('delete-button').addEventListener('click', function () {
-        // Confirm deletion
-        if (confirm("Apakah anda yakin menghapus Chart?")) {
-            // Destroy the combined chart if it exists
-            if (combinedChart) {
-                combinedChart.destroy();
-                combinedChart = null;
+            if (results.length === 0) {
+                alert("Failed to fetch data for all options.");
+                return;
             }
 
-            // Clear individual charts
-            const individualChartsContainer = document.querySelector('.individual-charts');
-            individualChartsContainer.innerHTML = ''; // Clear previous charts
+            updateCombinedChart(results);
+            displayIndividualCharts(results);
+        })
+        .catch(() => {
+            document.getElementById('loading-overlay').style.display = 'none';
+        });
+});
 
-            // Clear selected options
-            selectedOptions = [];
-            $('#selected-options').empty();
 
-            alert("Semua chart berhasil dihapus.");
+document.getElementById('delete-button').addEventListener('click', function() {
+    // Confirm deletion
+    if (confirm("Apakah anda yakin menghapus Chart?")) {
+        // Destroy the combined chart if it exists
+        if (combinedChart) {
+            combinedChart.destroy();
+            combinedChart = null;
         }
-    });
 
-    function getRandomColor() {
-        const r = Math.floor(Math.random() * 255);
-        const g = Math.floor(Math.random() * 255);
-        const b = Math.floor(Math.random() * 255);
-        return `rgba(${r}, ${g}, ${b}, 1)`;
+        // Clear individual charts
+        const individualChartsContainer = document.querySelector('.individual-charts');
+        individualChartsContainer.innerHTML = ''; // Clear previous charts
+
+        // Clear selected options
+        selectedOptions = [];
+        $('#selected-options').empty();
+
+        alert("Semua chart berhasil dihapus.");
     }
+});
+
+function getRandomColor() {
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    return `rgba(${r}, ${g}, ${b}, 1)`;
+}
 </script>

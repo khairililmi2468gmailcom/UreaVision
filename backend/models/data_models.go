@@ -2,14 +2,16 @@ package models
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"fmt"
+	"log"
+	"sync"
 	"time"
 )
 
 const (
-	PageSize  = 86400 // 86,400 rows per day
-	BatchSize = 1000  // Split data retrieval into batches
+	PageSize    = 1440    // 1,440 minutes in a day
+	BatchSize   = 10000    // Batch size for data retrieval
+	WorkerCount = 30      // Number of concurrent workers
 )
 
 type TableColumnData struct {
@@ -39,23 +41,56 @@ func GetTables(db *sql.DB) ([]string, error) {
 func GetTableDataInBatches(db *sql.DB, tableName, column string, startTime, endTime time.Time) (*TableColumnData, error) {
 	columnData := &TableColumnData{
 		TableName: tableName,
-		Columns:   []string{"Time_Stamp", column},
+		Columns:   []string{"Minute", column},
 		Data:      [][]interface{}{},
 	}
 
+	jobChan := make(chan int, PageSize/BatchSize)
+	resultChan := make(chan [][]interface{}, PageSize/BatchSize)
+	var wg sync.WaitGroup
+
+	for i := 0; i < WorkerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for offset := range jobChan {
+				batchData, err := GetTableData(db, tableName, column, startTime, endTime, offset, BatchSize)
+				if err != nil {
+					log.Println("Error fetching batch data:", err)
+					continue
+				}
+				resultChan <- batchData.Data
+			}
+		}()
+	}
+
 	for offset := 0; offset < PageSize; offset += BatchSize {
-		batchData, err := GetTableData(db, tableName, column, startTime, endTime, offset, BatchSize)
-		if err != nil {
-			return nil, err
-		}
-		columnData.Data = append(columnData.Data, batchData.Data...)
+		jobChan <- offset
+	}
+	close(jobChan)
+
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	for batch := range resultChan {
+		columnData.Data = append(columnData.Data, batch...)
 	}
 
 	return columnData, nil
 }
 
 func GetTableData(db *sql.DB, tableName, column string, startTime, endTime time.Time, offset, limit int) (*TableColumnData, error) {
-	query := fmt.Sprintf("SELECT Time_Stamp, %s FROM %s WHERE Time_Stamp BETWEEN ? AND ? LIMIT ? OFFSET ?", column, tableName)
+	query := fmt.Sprintf(`
+		SELECT 
+			DATE_FORMAT(Time_Stamp, '%%Y-%%m-%%d %%H:%%i:00') AS Minute,
+			AVG(%s) AS AverageValue
+		FROM %s
+		WHERE Time_Stamp BETWEEN ? AND ?
+		GROUP BY Minute
+		LIMIT ? OFFSET ?
+	`, column, tableName)
 
 	rows, err := db.Query(query, startTime, endTime, limit, offset)
 	if err != nil {
@@ -65,40 +100,17 @@ func GetTableData(db *sql.DB, tableName, column string, startTime, endTime time.
 
 	columnData := &TableColumnData{
 		TableName: tableName,
-		Columns:   []string{"Time_Stamp", column},
+		Columns:   []string{"Minute", "AverageValue"},
 	}
 
 	for rows.Next() {
-		var timestampBytes []byte
-		var value interface{}
-		if err := rows.Scan(&timestampBytes, &value); err != nil {
+		var minute string
+		var avgValue float64
+		if err := rows.Scan(&minute, &avgValue); err != nil {
 			return nil, err
 		}
 
-		// Convert timestampBytes to time.Time
-		var formattedTime string
-		if len(timestampBytes) > 0 {
-			timestampString := string(timestampBytes)
-			parsedTime, err := time.Parse("2006-01-02 15:04:05", timestampString)
-			if err != nil {
-				return nil, err
-			}
-			formattedTime = parsedTime.Format("2006-01-02 15:04:05")
-		} else {
-			formattedTime = "NULL"
-		}
-
-		// Handle column value formatting
-		if column == "Time_Stamp" {
-			value = formattedTime
-		} else {
-			if valueBytes, ok := value.([]byte); ok {
-				decoded, _ := base64.StdEncoding.DecodeString(string(valueBytes))
-				value = string(decoded)
-			}
-		}
-
-		columnData.Data = append(columnData.Data, []interface{}{formattedTime, value})
+		columnData.Data = append(columnData.Data, []interface{}{minute, avgValue})
 	}
 
 	if err = rows.Err(); err != nil {
@@ -132,7 +144,6 @@ func CombineTableData(results chan *TableColumnData) map[string]interface{} {
 	return combinedData
 }
 
-
 func GetAllColumnNames(db *sql.DB) ([]string, error) {
 	tables, err := GetTables(db)
 	if err != nil {
@@ -153,12 +164,10 @@ func GetAllColumnNames(db *sql.DB) ([]string, error) {
 		for rows.Next() {
 			var columnName, colType, null, key, defaultValue, extra sql.NullString
 
-			// Use sql.NullString to handle potential NULL values
 			if err := rows.Scan(&columnName, &colType, &null, &key, &defaultValue, &extra); err != nil {
 				return nil, err
 			}
 
-			// Convert valid sql.NullString to string and add to the set
 			if columnName.Valid {
 				columnSet[columnName.String] = true
 			}
